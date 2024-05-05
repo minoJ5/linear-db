@@ -1,0 +1,1 @@
+Goal: A fast persistent in-memory database, that is pub/sub capable.
