@@ -8,13 +8,14 @@ import (
 )
 
 type Databases struct {
-	Databases []Database
-	WriteLock sync.RWMutex
+	Databases []Database    `json:"databases"`
+	WriteLock *sync.RWMutex `json:"-"`
 }
 
 type Database struct {
-	Index int
-	Name  string
+	Index  int     `json:"index"`
+	Name   string  `json:"name"`
+	Tables []Table `json:"tables"`
 }
 
 func (ds *Databases) DatabaseExists(db *Database) bool {
@@ -58,31 +59,51 @@ func (d *Database) ReadBodyCreateDatabase(w http.ResponseWriter, r *http.Request
 	return nil
 }
 
+type TableQuery struct {
+	Database string `json:"database_name"`
+	Table    string `json:"table_name"`
+}
+
 type DatabaseTable struct {
-	DatabaseIndex int
-	Table         Table
+	DatabaseIndex int   `json:"index"`
+	Table         Table `json:"table"`
 }
 
 type DatabasesTables struct {
-	Tables    []DatabaseTable
-	WriteLock sync.RWMutex
+	Tables    []DatabaseTable `json:"tables"`
+	WriteLock *sync.RWMutex   `json:"-"`
 }
 
 type Table struct {
-	Index         int
-	Name          string
-	DatabaseIndex int
-	Database      string
-	Columns       map[string]Column
+	Index         int               `json:"index"`
+	Name          string            `json:"name"`
+	DatabaseIndex int               `json:"database_index"`
+	Database      string            `json:"database_name"`
+	Columns       map[string]Column `json:"columns"`
 }
 
-func (dt *DatabasesTables) TableExists(t *Table) bool {
-	for _, d := range dt.Tables {
-		if d.Table.Name == t.Name && d.DatabaseIndex == t.DatabaseIndex {
+type Column struct {
+	Index  int           `json:"index"`
+	Name   string        `json:"name"`
+	Type   string        `json:"type"`
+	Values []interface{} `json:"values"`
+}
+
+func (ds *Databases) TableExists(i int, t *Table) bool {
+	for _, d := range ds.Databases[i].Tables {
+		if d.Name == t.Name {
 			return true
 		}
 	}
 	return false
+}
+func (ds *Databases) TableIndex(i int, tn string) int {
+	for ti, d := range ds.Databases[i].Tables {
+		if d.Name == tn {
+			return ti
+		}
+	}
+	return -1
 }
 
 func (t *Table) AppendTableResponse(w http.ResponseWriter) {
@@ -90,24 +111,42 @@ func (t *Table) AppendTableResponse(w http.ResponseWriter) {
 	fmt.Fprintf(w, "Table [%s] created\n%+v", t.Name, *t)
 }
 
-func (dt *DatabasesTables) AppendTable(t *Table, ds *Databases) error{
-	ds.WriteLock.RLock()
-	dt.WriteLock.RLock()
-	defer dt.WriteLock.RUnlock()
-	defer ds.WriteLock.RUnlock()
-	td := new(DatabaseTable)
-	t.Index = 0
-	t.DatabaseIndex = ds.IndexOf(t.Database)
-	td.DatabaseIndex = t.DatabaseIndex
-	if dt.TableExists(t) {
-		return fmt.Errorf("table %s alreay exits in database %s", t.Name, t.Database)
+func (ds *Databases) AppendTable(t *Table) error {
+	ds.WriteLock.Lock()
+	defer ds.WriteLock.Unlock()
+	var dbIndex int = ds.IndexOf(t.Database)
+	var db *Database = &ds.Databases[dbIndex]
+	t.DatabaseIndex = dbIndex
+	t.Index = len(db.Tables)
+	if dbIndex == -1 {
+		return fmt.Errorf("databse %s does not exits", db.Name)
 	}
-	td.Table = *t
-	dt.Tables = append(dt.Tables, *td)
+	if ds.TableExists(dbIndex, t) {
+		return fmt.Errorf("table %s alreay exits in database %s", t.Name, db.Name)
+	}
+	db.Tables = append(db.Tables, *t)
 	t = nil
-	td = nil
 	return nil
 }
+
+// func (dt *DatabasesTables) AppendTable(t *Table, ds *Databases) error {
+// 	ds.WriteLock.RLock()
+// 	dt.WriteLock.RLock()
+// 	defer dt.WriteLock.RUnlock()
+// 	defer ds.WriteLock.RUnlock()
+// 	td := new(DatabaseTable)
+// 	t.Index = 0
+// 	t.DatabaseIndex = ds.IndexOf(t.Database)
+// 	td.DatabaseIndex = t.DatabaseIndex
+// 	if dt.TableExists(t) {
+// 		return fmt.Errorf("table %s alreay exits in database %s", t.Name, t.Database)
+// 	}
+// 	td.Table = *t
+// 	dt.Tables = append(dt.Tables, *td)
+// 	t = nil
+// 	td = nil
+// 	return nil
+// }
 
 func (t *Table) ReadBodyCreateTable(w http.ResponseWriter, r *http.Request) error {
 	decoder := json.NewDecoder(r.Body)
@@ -120,9 +159,33 @@ func (t *Table) ReadBodyCreateTable(w http.ResponseWriter, r *http.Request) erro
 	return nil
 }
 
-type Column struct {
-	Index  int
-	Name   string
-	Type   string
-	Values []interface{}
+func (tq *TableQuery) ReadBodyGetTables(w http.ResponseWriter, r *http.Request) error {
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	err := decoder.Decode(tq)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error decoing JSON:\n%s\n", err), http.StatusBadRequest)
+		return err
+	}
+	return nil
+}
+
+func GetTalbes(ds *Databases, dn string, tn string) (*[]Table, error) {
+	ds.WriteLock.RLock()
+	defer ds.WriteLock.RUnlock()
+	var dbIndex int = ds.IndexOf(dn)
+	if dbIndex == -1 {
+		return nil, fmt.Errorf("databse %s does not exits", dn)
+	}
+	ts := make([]Table, 0)
+	if tn == "*" {
+		ts = append(ts, ds.Databases[dbIndex].Tables...)
+	} else {
+		var tIndex = ds.TableIndex(dbIndex, tn)
+		if tIndex == -1 {
+			return nil, fmt.Errorf("table %s does not exits in database %s", tn, dn)
+		}
+		ts = append(ts, ds.Databases[dbIndex].Tables[tIndex])
+	}
+	return &ts, nil
 }

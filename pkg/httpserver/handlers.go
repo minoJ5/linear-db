@@ -6,6 +6,7 @@ import (
 	sr "linear-db/pkg/structure"
 	"net/http"
 	"regexp"
+	"sync"
 	"time"
 )
 
@@ -17,6 +18,7 @@ var (
 func init() {
 	ds = &sr.Databases{
 		Databases: make([]sr.Database, 0),
+		WriteLock: new(sync.RWMutex),
 	}
 	dt = &sr.DatabasesTables{
 		Tables: make([]sr.DatabaseTable, 0),
@@ -76,6 +78,8 @@ func listLDatabases(w http.ResponseWriter, r *http.Request) {
 		methodNotAllowedResponse(w, r)
 		return
 	}
+	ds.WriteLock.RLock()
+	defer ds.WriteLock.RUnlock()
 	resp, err := json.Marshal(ds.Databases)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("JSON encoding error:\n%+v\n", ds), http.StatusInternalServerError)
@@ -97,7 +101,7 @@ func createTable(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Error: Database [%s] does not exist", t.Database), http.StatusConflict)
 		return
 	}
-	err = dt.AppendTable(t, ds)
+	err = ds.AppendTable(t)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error: Table [%s] aready exists in [%s] ", t.Name, t.Database), http.StatusConflict)
 		fmt.Println(err)
@@ -107,14 +111,26 @@ func createTable(w http.ResponseWriter, r *http.Request) {
 }
 
 func listTables(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Allow", "GET")
-	if r.Method != http.MethodGet {
+	w.Header().Set("Allow", "POST")
+	if r.Method != http.MethodPost {
 		methodNotAllowedResponse(w, r)
 		return
 	}
-	resp, err := json.Marshal(dt)
+	tq := new(sr.TableQuery)
+	err := tq.ReadBodyGetTables(w, r)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Query invalid:\n%+v\n", tq), http.StatusInternalServerError)
+		return
+	}
+	tables, err := sr.GetTalbes(ds, tq.Database, tq.Table)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Query invalid 2:\n%+v\n%s\n", tq, err), http.StatusInternalServerError)
+		return
+	}
+	resp, err := json.Marshal(tables)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("JSON encoding error:\n%+v\n", dt), http.StatusInternalServerError)
+		return
 	}
 	fmt.Fprintf(w, "%s", string(resp))
 }
