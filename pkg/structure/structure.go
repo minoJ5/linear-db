@@ -41,11 +41,15 @@ func (d *Database) AppendDatabaseResponse(w http.ResponseWriter) {
 	fmt.Fprintf(w, "Database [%s] created: `%+v`:", d.Name, *d)
 }
 
-func (ds *Databases) AppendDatabase(d *Database, w http.ResponseWriter) {
+func (ds *Databases) AppendDatabase(d *Database, w http.ResponseWriter) error {
+	ds.WriteLock.Lock()
+	defer ds.WriteLock.Unlock()
 	d.Index = len(ds.Databases)
-	ds.WriteLock.RLock()
-	defer ds.WriteLock.RUnlock()
+	if ds.DatabaseExists(d) {
+		return fmt.Errorf("database %s already exists", d.Name)
+	}
 	ds.Databases = append(ds.Databases, *d)
+	return nil
 }
 
 func (d *Database) ReadBodyCreateDatabase(w http.ResponseWriter, r *http.Request) error {

@@ -64,11 +64,12 @@ func createLDatabase(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Database's name [%s] not valid, allowed are names with characters from A(a) to Z(z) with - or _ as seperation!", d.Name), http.StatusConflict)
 		return
 	}
-	if ds.DatabaseExists(d) {
+
+	err = ds.AppendDatabase(d, w)
+	if err != nil {
 		http.Error(w, fmt.Sprintf("Database [%s] already exitsts", d.Name), http.StatusConflict)
 		return
 	}
-	ds.AppendDatabase(d, w)
 	d.AppendDatabaseResponse(w)
 }
 
