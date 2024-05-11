@@ -2,10 +2,10 @@ package websocket
 
 import (
 	"fmt"
+	hs "linear-db/pkg/httpserver"
 	"log"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -32,11 +32,16 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	wg.Add(2)
 	defer wg.Wait()
 	go func() {
-		for {
-			conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("Connection is alive %v", time.Now())))
-			time.Sleep(5000 * time.Millisecond)
+		for update := range hs.Comm {
+			conn.WriteMessage(websocket.TextMessage, []byte(update))
 		}
 	}()
+	// go func() {
+	// 	for {
+	// 		conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("Connection is alive %v", time.Now())))
+	// 		time.Sleep(5000 * time.Millisecond)
+	// 	}
+	// }()
 	go func() {
 		for {
 			t, message, err := conn.ReadMessage()

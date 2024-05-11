@@ -14,6 +14,7 @@ var (
 	ds *sr.Databases
 	dt *sr.DatabasesTables
 )
+var Comm chan string
 
 func init() {
 	ds = &sr.Databases{
@@ -23,6 +24,7 @@ func init() {
 	dt = &sr.DatabasesTables{
 		Tables: make([]sr.DatabaseTable, 0),
 	}
+	Comm = make(chan string)
 }
 
 func cselect(w http.ResponseWriter, r *http.Request) {
@@ -71,6 +73,7 @@ func createLDatabase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	d.AppendDatabaseResponse(w)
+	Comm <- fmt.Sprintf("Created Databse [%s]", d.Name)
 }
 
 func listLDatabases(w http.ResponseWriter, r *http.Request) {
