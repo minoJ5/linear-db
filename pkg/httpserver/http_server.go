@@ -5,13 +5,13 @@ import (
 	"net/http"
 	"github.com/go-chi/chi/v5"
   "github.com/go-chi/chi/v5/middleware"
-	cmw "linear-db/pkg/middleware"
+	//cmw "linear-db/pkg/middleware"
 )
 
 func HttpServer() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
-	r.Use(cmw.Memory)
+	//r.Use(cmw.Memory)
 	url := "127.0.0.1:8001"
 	log.Printf("server started on %s\n", url)
 	r.Get("/live", live)
