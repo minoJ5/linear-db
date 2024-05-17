@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	sr "linear-db/pkg/structure"
+	"log"
 	"net/http"
 	"regexp"
 	"sync"
@@ -14,7 +15,8 @@ var (
 	ds *sr.Databases
 	dt *sr.DatabasesTables
 )
-//var Comm chan string
+
+var Comm chan string
 
 func init() {
 	ds = &sr.Databases{
@@ -24,7 +26,14 @@ func init() {
 	dt = &sr.DatabasesTables{
 		Tables: make([]sr.DatabaseTable, 0),
 	}
-	//Comm = make(chan string, 1)
+	Comm = make(chan string)
+}
+func sendNotification(c *chan string, msg string) {
+	select {
+	case *c <- msg:
+	default:
+		log.Println("No open websocket connections")
+	}
 }
 
 func cselect(w http.ResponseWriter, r *http.Request) {
@@ -44,7 +53,7 @@ func methodNotAllowedResponse(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, fmt.Sprintf("Method [%s] is not allowed!\n", r.Method), http.StatusMethodNotAllowed)
 }
 
-func createLDatabase(w http.ResponseWriter, r *http.Request) {
+func createDatabase(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Allow", "POST")
 	w.Header().Set("Content-Type", "application/json")
 	if r.Method != http.MethodPost {
@@ -73,10 +82,11 @@ func createLDatabase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	d.AppendDatabaseResponse(w)
+	sendNotification(&Comm, fmt.Sprintf("Created Databse [%s]", d.Name))
 	//Comm <- fmt.Sprintf("Created Databse [%s]", d.Name)
 }
 
-func listLDatabases(w http.ResponseWriter, r *http.Request) {
+func listDatabases(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Allow", "GET")
 	if r.Method != http.MethodGet {
 		methodNotAllowedResponse(w, r)
