@@ -14,7 +14,7 @@ import (
 func HttpServer() {
 	err := godotenv.Load("../.env")
 	if err != nil {
-		log.Fatal("HTTP server: Error loading .env file", err)
+		log.Println("HTTP server: Error loading .env file", err)
 	}
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)

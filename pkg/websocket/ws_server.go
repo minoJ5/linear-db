@@ -215,7 +215,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 func WsConnect() {
 	err := godotenv.Load("../.env")
 	if err != nil {
-		log.Fatal("WS server: Error loading .env file")
+		log.Println("WS server: Error loading .env file")
 	}
 	go H.run()
 	http.HandleFunc("/ws", handler)
