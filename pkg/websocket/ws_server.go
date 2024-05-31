@@ -1,6 +1,6 @@
 // Parts of this code are from the example chat in the gorilla websocket package.
 // Link: https://github.com/gorilla/websocket/blob/main/examples/chat/client.go
-// Licence is in the licenses/ws_license.txt file.
+// Licence is in the licenses/ws_license.md file.
 
 package websocket
 
@@ -218,6 +218,7 @@ func WsConnect() {
 		log.Println("WS server: Error loading .env file")
 	}
 	go H.run()
+	log.Printf("WS listening on %s\n", os.Getenv("URL_WS"))
 	http.HandleFunc("/ws", handler)
 	http.ListenAndServe(os.Getenv("URL_WS"), nil)
 }

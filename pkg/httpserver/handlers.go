@@ -32,7 +32,7 @@ func sendNotification(c *chan string, msg string) {
 	select {
 	case *c <- msg:
 	default:
-		log.Println("No open websocket connections")
+		log.Printf("No open websocket connections, %s\n", msg)
 	}
 }
 
