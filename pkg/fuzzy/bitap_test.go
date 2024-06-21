@@ -2,14 +2,17 @@ package fuzzy
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
+
 const (
-	text = "aklelpode dfeeww"
-	pattern = "eew"
-	textf = "app models user.rb"
+	text     = "aklelpode dfeeww"
+	pattern  = "eew"
+	textf    = "app models user.rb"
 	patternf = "uesr"
 )
+
 func TestBitap(t *testing.T) {
 
 	res, err := BitapSearch(text, pattern)
@@ -28,5 +31,10 @@ func BenchmarkBitap(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		FuzzyBitapSearch(textf, patternf, 2)
 		//strings.Contains(text, pattern)
+	}
+}
+func BenchmarkContains(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		strings.Contains(text, pattern)
 	}
 }

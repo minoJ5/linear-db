@@ -8,7 +8,7 @@ import (
 )
 
 type Databases struct {
-	Databases []Database    `json:"databases"`
+	Databases []*Database   `json:"databases"`
 	WriteLock *sync.RWMutex `json:"-"`
 }
 
@@ -16,6 +16,11 @@ type Database struct {
 	Index  int     `json:"index"`
 	Name   string  `json:"name"`
 	Tables []Table `json:"tables"`
+}
+
+type DatabaseIdentifier struct {
+	Index int    `json:"index"`
+	Name  string `json:"name"`
 }
 
 func (ds *Databases) DatabaseExists(db *Database) bool {
@@ -48,11 +53,43 @@ func (ds *Databases) AppendDatabase(d *Database, w http.ResponseWriter) error {
 	if ds.DatabaseExists(d) {
 		return fmt.Errorf("database %s already exists", d.Name)
 	}
-	ds.Databases = append(ds.Databases, *d)
+	ds.Databases = append(ds.Databases, d)
 	return nil
 }
 
+func (ds *Databases) DeleteDatabase(name string) error {
+	ds.WriteLock.Lock()
+	defer ds.WriteLock.Unlock()
+	var i int = ds.IndexOf(name)
+	if i == -1 {
+		return fmt.Errorf("database %s does not exist", name)
+	}
+	ds.Databases[i] = ds.Databases[len(ds.Databases)-1]
+	ds.Databases[len(ds.Databases)-1] = nil
+	ds.Databases = ds.Databases[:len(ds.Databases)-1]
+
+	return nil
+}
+
+func (d *DatabaseIdentifier) DeleteDatabaseResponse(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusCreated)
+	fmt.Fprintf(w, "Database [%s] deleted: `%+v`:", d.Name, *d)
+}
+
+
+
 func (d *Database) ReadBodyCreateDatabase(w http.ResponseWriter, r *http.Request) error {
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	err := decoder.Decode(d)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error decoing JSON:\n%s\n", err), http.StatusBadRequest)
+		return err
+	}
+	return nil
+}
+// TODO: Use this instead of ReadBodyCreateDatabase
+func (d *DatabaseIdentifier) ReadBodyDatabaseGeneral(w http.ResponseWriter, r *http.Request) error {
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	err := decoder.Decode(d)
@@ -69,13 +106,13 @@ type TableQuery struct {
 }
 
 type DatabaseTable struct {
-	DatabaseIndex int   `json:"index"`
-	Table         Table `json:"table"`
+	DatabaseIndex int    `json:"index"`
+	Table         *Table `json:"table"`
 }
 
 type DatabasesTables struct {
-	Tables    []DatabaseTable `json:"tables"`
-	WriteLock *sync.RWMutex   `json:"-"`
+	Tables    []*DatabaseTable `json:"tables"`
+	WriteLock *sync.RWMutex    `json:"-"`
 }
 
 type Table struct {
@@ -119,7 +156,7 @@ func (ds *Databases) AppendTable(t *Table) error {
 	ds.WriteLock.Lock()
 	defer ds.WriteLock.Unlock()
 	var dbIndex int = ds.IndexOf(t.Database)
-	var db *Database = &ds.Databases[dbIndex]
+	var db *Database = ds.Databases[dbIndex]
 	t.DatabaseIndex = dbIndex
 	t.Index = len(db.Tables)
 	if dbIndex == -1 {

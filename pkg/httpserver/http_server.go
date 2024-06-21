@@ -22,6 +22,7 @@ func HttpServer() {
 	log.Printf("server started on %s\n", os.Getenv("URL_HTTP"))
 	r.Get("/live", live)
 	r.HandleFunc("/createdb", createDatabase)
+	r.HandleFunc("/deletedb", deleteDatabase)
 	r.HandleFunc("/select", cselect)
 	r.HandleFunc("/listdbs", listDatabases)
 	r.HandleFunc("/createtable", createTable)

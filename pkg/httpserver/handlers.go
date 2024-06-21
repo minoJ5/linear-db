@@ -20,11 +20,11 @@ var Comm chan string
 
 func init() {
 	ds = &sr.Databases{
-		Databases: make([]sr.Database, 0),
+		Databases: make([]*sr.Database, 0),
 		WriteLock: new(sync.RWMutex),
 	}
 	dt = &sr.DatabasesTables{
-		Tables: make([]sr.DatabaseTable, 0),
+		Tables: make([]*sr.DatabaseTable, 0),
 	}
 	Comm = make(chan string)
 }
@@ -84,6 +84,31 @@ func createDatabase(w http.ResponseWriter, r *http.Request) {
 	d.AppendDatabaseResponse(w)
 	sendNotification(&Comm, fmt.Sprintf("Created Databse [%s]", d.Name))
 	//Comm <- fmt.Sprintf("Created Databse [%s]", d.Name)
+}
+
+func deleteDatabase(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Allow", "POST")
+	w.Header().Set("Content-Type", "application/json")
+	if r.Method != http.MethodPost {
+		methodNotAllowedResponse(w, r)
+		return
+	}
+	di := new(sr.DatabaseIdentifier)
+	err := di.ReadBodyDatabaseGeneral(w, r)
+	if err != nil {
+		return
+	}
+	if len(di.Name) == 0 {
+		http.Error(w, "Database's name cannot be empty", http.StatusConflict)
+		return
+	}
+	err = ds.DeleteDatabase(di.Name)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Database [%s] does not exitst", di.Name), http.StatusConflict)
+		return
+	}
+	di.DeleteDatabaseResponse(w)
+	sendNotification(&Comm, fmt.Sprintf("Deleted Databse [%s]", di.Name))
 }
 
 func listDatabases(w http.ResponseWriter, r *http.Request) {

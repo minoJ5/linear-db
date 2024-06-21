@@ -1,6 +1,5 @@
 // use bytes fields to seperate a string
 // https://pkg.go.dev/bytes#FieldsFunc
-
 package main
 
 import (
