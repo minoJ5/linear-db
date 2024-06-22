@@ -61,7 +61,7 @@ func createDatabase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	d := new(sr.Database)
-
+	d.WriteLock = new(sync.RWMutex)
 	err := d.ReadBodyCreateDatabase(w, r)
 	if err != nil {
 		//fmt.Println(fmt.Errorf("read body err:\n%s", err))
@@ -136,7 +136,7 @@ func createTable(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	if ix := ds.IndexOf(t.Database); ix == -1 {
+	if ix := ds.IndexOfDatabase(t.Database); ix == -1 {
 		http.Error(w, fmt.Sprintf("Error: Database [%s] does not exist", t.Database), http.StatusConflict)
 		return
 	}
@@ -147,6 +147,34 @@ func createTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	t.AppendTableResponse(w)
+}
+
+func deleteTable(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		methodNotAllowedResponse(w, r)
+		return
+	}
+	t := new(sr.TableIdentifier)
+	err := t.ReadBodyTableGeneral(w, r)
+	if err != nil {
+		return
+	}
+	if len(t.Name) == 0 {
+		http.Error(w, "Table's name cannot be empty", http.StatusConflict)
+		return
+	}
+	d, err := ds.FindDatabase(t.Database)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Database [%s] does not exitst", t.Database), http.StatusConflict)
+		return
+	}
+	err = d.DeleteTable(t.Name)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Table [%s] does not exitst", t.Name), http.StatusConflict)
+		return
+	}
+	t.DeleteTableResponse(d, w)
+	sendNotification(&Comm, fmt.Sprintf("Deleted Table [%s] in Database [%s]", t.Name, t.Database))
 }
 
 func listTables(w http.ResponseWriter, r *http.Request) {

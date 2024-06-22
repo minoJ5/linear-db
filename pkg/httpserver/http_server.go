@@ -26,6 +26,7 @@ func HttpServer() {
 	r.HandleFunc("/select", cselect)
 	r.HandleFunc("/listdbs", listDatabases)
 	r.HandleFunc("/createtable", createTable)
+	r.HandleFunc("/deletetable", deleteTable)
 	r.HandleFunc("/listtables", listTables)
 	err = http.ListenAndServe(os.Getenv("URL_HTTP"), r)
 	log.Fatalf("server crashed:\n %s\n", err)
